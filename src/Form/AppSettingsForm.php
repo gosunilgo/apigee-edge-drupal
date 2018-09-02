@@ -106,7 +106,7 @@ class AppSettingsForm extends ConfigFormBase {
       /** @var \Drupal\apigee_edge\Entity\ApiProduct[] $products */
       $products = ApiProduct::loadMultiple();
       foreach ($products as $product) {
-        $product_list[$product->id()] = $product->getDisplayName();
+        $product_list[$product->id()] = $product->label();
       }
     }
     catch (EntityStorageException $e) {
@@ -183,7 +183,7 @@ class AppSettingsForm extends ConfigFormBase {
    *
    * @see https://www.drupal.org/project/drupal/issues/2855139
    */
-  public function apiProductListCallback(array &$form, FormStateInterface $form_state) : AjaxResponse {
+  public function apiProductListCallback(array &$form, FormStateInterface $form_state): AjaxResponse {
     $response = new AjaxResponse();
     $response->addCommand(new ReplaceCommand('#default-api-product-multiple', $this->renderer->render($form['api_product']['default_api_product_multiple_container'])));
     return $response;

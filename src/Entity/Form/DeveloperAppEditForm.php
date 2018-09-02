@@ -101,14 +101,30 @@ class DeveloperAppEditForm extends DeveloperAppCreateForm {
     $config = $this->configFactory->get('apigee_edge.common_app_settings');
     $multiple = $config->get('multiple_products');
 
+    $form['#tree'] = TRUE;
+
     // Do not allow to change the (machine) name of the app.
     $form['name'] = [
       '#type' => 'value',
       '#value' => $this->entity->getName(),
     ];
-    $form['#tree'] = TRUE;
+
+    // If app's display name is empty fallback to app name as default
+    // value just like Apigee Edge Management UI does.
+    if ($form['displayName']['widget'][0]['value']['#default_value'] === NULL) {
+      $form['displayName']['widget'][0]['value']['#default_value'] = $this->getEntity()->getName();
+    }
+
+    // If app's callback URL field is visible on the form then set the property
+    // value as default value because the field value can be empty if the
+    // original value is not a valid URL.
+    // See: \Drupal\apigee_edge\Entity\DeveloperApp::set()
+    if (isset($form['callbackUrl'])) {
+      $form['callbackUrl']['widget'][0]['value']['#default_value'] = $this->getEntity()->getCallbackUrl();
+    }
+
     $form['developerId']['#access'] = FALSE;
-    $form['product']['#access'] = !isset($form['product']) ?: FALSE;
+    $form['api_products']['#access'] = !isset($form['api_products']) ?: FALSE;
 
     if ($config->get('user_select')) {
       $form['credential'] = [
@@ -135,11 +151,11 @@ class DeveloperAppEditForm extends DeveloperAppCreateForm {
         }
         // Parent form has already ensured that only those API products
         // are visible in this list in which the (current) user has access.
-        $product_list = $form['product']['api_products']['#options'];
+        $product_list = $form['api_products']['#options'];
         // But we have to add this app's currently assigned API products to the
         // list as well.
         $product_list += array_map(function (ApiProductInterface $product) {
-          return $product->getDisplayName();
+          return $product->label();
         }, $this->entityTypeManager->getStorage('api_product')->loadMultiple($current_product_ids));
 
         $form['credential'][$credential->getConsumerKey()]['api_products'] = [
@@ -283,7 +299,9 @@ class DeveloperAppEditForm extends DeveloperAppCreateForm {
    * {@inheritdoc}
    */
   public function getPageTitle(RouteMatchInterface $routeMatch): string {
-    return $this->t('Edit @developer_app', ['@developer_app' => $this->entityTypeManager->getDefinition('developer_app')->getLowercaseLabel()]);
+    return $this->t('Edit @developer_app', [
+      '@developer_app' => $this->entityTypeManager->getDefinition('developer_app')->getLowercaseLabel(),
+    ]);
   }
 
 }

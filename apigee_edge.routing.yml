@@ -4,8 +4,7 @@ apigee_edge.error_page:
     _controller: '\Drupal\apigee_edge\Controller\ErrorPageController::render'
     _title_callback: '\Drupal\apigee_edge\Controller\ErrorPageController::getPageTitle'
   requirements:
-    _permission: 'access content'
-    _user_is_logged_in: 'TRUE'
+    _access: 'TRUE'
 
 apigee_edge.admin_config_edge:
   path: '/admin/config/apigee-edge'
@@ -86,6 +85,7 @@ apigee_edge.settings.product.caching:
     _title: 'API Product caching'
   requirements:
     _permission: 'administer apigee edge'
+
 apigee_edge.settings.product.access_control:
   path: '/admin/config/apigee-edge/product-settings/access-control'
   defaults:
@@ -235,7 +235,7 @@ entity.developer_app.collection_by_developer:
      _custom_access: '\Drupal\apigee_edge\Access\MyAppsAccessCheck::access'
 
 entity.developer_app.add_form_for_developer:
-  path: '/user/{user}/apps/create'
+  path: '/user/{user}/create-app'
   defaults:
     _entity_form: 'developer_app.add_for_developer'
     _title_callback: '\Drupal\apigee_edge\Entity\Form\DeveloperAppCreateFormForDeveloper::getPageTitle'

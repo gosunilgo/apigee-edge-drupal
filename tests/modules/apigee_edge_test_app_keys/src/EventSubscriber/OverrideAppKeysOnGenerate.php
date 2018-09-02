@@ -24,10 +24,31 @@ use Apigee\Edge\Exception\ApiException;
 use Apigee\Edge\Structure\CredentialProduct;
 use Drupal\apigee_edge\Entity\Controller\DeveloperAppCredentialController;
 use Drupal\apigee_edge\Event\AppCredentialGenerateEvent;
+use Drupal\apigee_edge\SDKConnectorInterface;
 use Drupal\Component\Utility\Random;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
+/**
+ * Developer app credential generate event subscriber.
+ */
 class OverrideAppKeysOnGenerate implements EventSubscriberInterface {
+
+  /**
+   * The SDK Connector service.
+   *
+   * @var \Drupal\apigee_edge\SDKConnectorInterface
+   */
+  private $sdkConnector;
+
+  /**
+   * OverrideAppKeysOnGenerate constructor.
+   *
+   * @param \Drupal\apigee_edge\SDKConnectorInterface $sdkConnector
+   *   The Apigee Edge SDK connector service.
+   */
+  public function __construct(SDKConnectorInterface $sdkConnector) {
+    $this->sdkConnector = $sdkConnector;
+  }
 
   /**
    * {@inheritdoc}
@@ -48,13 +69,12 @@ class OverrideAppKeysOnGenerate implements EventSubscriberInterface {
    */
   public function overrideAppKeyOnGenerate(AppCredentialGenerateEvent $event) {
     $random = new Random();
-    $sdk_connector = \Drupal::service('apigee_edge.sdk_connector');
     if ($event->getAppType() === AppCredentialGenerateEvent::APP_TYPE_DEVELOPER) {
       $credential_controller = new DeveloperAppCredentialController(
-        $sdk_connector->getOrganization(),
+        $this->sdkConnector->getOrganization(),
         $event->getOwnerId(),
         $event->getAppName(),
-        $sdk_connector->getClient()
+        $this->sdkConnector->getClient()
       );
     }
     else {

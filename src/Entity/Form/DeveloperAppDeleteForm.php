@@ -24,7 +24,9 @@ use Drupal\apigee_edge\Entity\DeveloperStatusCheckTrait;
 use Drupal\Core\Entity\EntityDeleteForm;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\Markup;
 use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -140,7 +142,7 @@ class DeveloperAppDeleteForm extends EntityDeleteForm implements DeveloperAppPag
    *
    * @see \Drupal\Core\StringTranslation\StringTranslationTrait::t()
    */
-  protected function pageTitle(array $args = []) {
+  protected function pageTitle(array $args = []): TranslatableMarkup {
     return $this->t('Delete @name @developer_app', $args);
   }
 
@@ -149,7 +151,7 @@ class DeveloperAppDeleteForm extends EntityDeleteForm implements DeveloperAppPag
    */
   public function getPageTitle(RouteMatchInterface $routeMatch): string {
     return $this->pageTitle([
-      '@name' => $routeMatch->getParameter('developer_app')->getDisplayName(),
+      '@name' => Markup::create($routeMatch->getParameter('developer_app')->label()),
       '@developer_app' => $this->entityTypeManager->getDefinition('developer_app')->getSingularLabel(),
     ]);
   }

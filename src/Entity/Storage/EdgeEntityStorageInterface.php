@@ -24,7 +24,7 @@ use Drupal\apigee_edge\SDKConnectorInterface;
 use Drupal\Core\Entity\EntityStorageInterface;
 
 /**
- * A storage that supports Edge entity types.
+ * A storage that supports Apigee Edge entity types.
  */
 interface EdgeEntityStorageInterface extends EntityStorageInterface {
 
@@ -35,9 +35,10 @@ interface EdgeEntityStorageInterface extends EntityStorageInterface {
    *   The SDK Connector service.
    *
    * @return \Apigee\Edge\Controller\EntityCrudOperationsControllerInterface
-   *   The controller must also implement CpsListingEntityControllerInterface
-   *   or NonCpsListingEntityControllerInterface.
+   *   The controller must also implement
+   *   PaginatedEntityListingControllerInterface or
+   *   NonPaginatedEntityListingControllerInterface.
    */
-  public function getController(SDKConnectorInterface $connector) : EntityCrudOperationsControllerInterface;
+  public function getController(SDKConnectorInterface $connector): EntityCrudOperationsControllerInterface;
 
 }

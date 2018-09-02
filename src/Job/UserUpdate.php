@@ -85,9 +85,10 @@ class UserUpdate extends EdgeJob {
           $context = [
             '%email' => $this->email,
             '%field_name' => $field_name,
+            'link' => $user->toLink(t('View user'))->toString(),
           ];
           \Drupal::logger('apigee_edge_sync')->warning($message, $context);
-          $this->recordMessage(t($message, $context)->render());
+          $this->recordMessage(t("Skipping %email user's field update, because %field_name field does not exist.", $context)->render());
           continue;
         }
         $field_type = $field_definition->getType();
@@ -100,9 +101,10 @@ class UserUpdate extends EdgeJob {
             '%email' => $this->email,
             '%field_name' => $field_name,
             '%field_type' => $field_type,
+            'link' => $user->toLink(t('View user'))->toString(),
           ];
           \Drupal::logger('apigee_edge_sync')->warning($message, $context);
-          $this->recordMessage(t($message, $context)->render());
+          $this->recordMessage(t("Skipping %email user's %field_name field update, because there is no available storage formatter for %field_type field type.", $context)->render());
           continue;
         }
 
@@ -121,14 +123,16 @@ class UserUpdate extends EdgeJob {
           if ($field_violations->count() > 0) {
             $user->set($field_name, $rollback);
             foreach ($field_violations as $violation) {
-              $message = "Skipping %email user's %field_name field update: %message";
+              $message = "Skipping %email user's %field_name field update with %field_value value: %message";
               $context = [
                 '%email' => $this->email,
                 '%field_name' => $field_name,
+                '%field_value' => $developer_attribute_value,
                 '%message' => $violation->getMessage(),
+                'link' => $user->toLink(t('View user'))->toString(),
               ];
               \Drupal::logger('apigee_edge_sync')->warning($message, $context);
-              $this->recordMessage(t($message, $context)->render());
+              $this->recordMessage(t("Skipping %email user's %field_name field update: %message", $context)->render());
             }
           }
           else {
@@ -144,15 +148,20 @@ class UserUpdate extends EdgeJob {
         // the same developer in apigee_edge_user_presave() while creating
         // Drupal user based on a developer should be avoided.
         _apigee_edge_set_sync_in_progress(TRUE);
+        // It's necessary because changed time is automatically updated on the
+        // UI only.
+        $user->setChangedTime(\Drupal::time()->getCurrentTime());
         $user->save();
       }
       catch (\Exception $exception) {
-        $message = "Skipping updating %email user: %message";
+        $message = 'Skipping updating %email user: %message';
         $context = [
+          '%email' => $this->email,
           '%message' => (string) $exception,
+          'link' => $user->toLink(t('View user'))->toString(),
         ];
         \Drupal::logger('apigee_edge_sync')->error($message, $context);
-        $this->recordMessage(t($message, $context)->render());
+        $this->recordMessage(t('Skipping updating %email user: %message', $context)->render());
       }
       finally {
         _apigee_edge_set_sync_in_progress(FALSE);

@@ -19,6 +19,7 @@
 
 namespace Drupal\apigee_edge\Controller;
 
+use Drupal\apigee_edge\Exception\DeveloperDoesNotExistException;
 use Drupal\apigee_edge\Entity\DeveloperAppInterface;
 use Drupal\apigee_edge\Entity\DeveloperStatusCheckTrait;
 use Drupal\apigee_edge\Entity\ListBuilder\DeveloperAppListBuilder;
@@ -34,6 +35,7 @@ use Drupal\Core\Url;
 use Drupal\user\UserInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Lists developer apps of a developer on the UI.
@@ -43,9 +45,11 @@ class DeveloperAppListBuilderForDeveloper extends DeveloperAppListBuilder {
   use DeveloperStatusCheckTrait;
 
   /**
+   * The current user.
+   *
    * @var \Drupal\Core\Session\AccountInterface
    */
-  private $currentUser;
+  protected $currentUser;
 
   /**
    * DeveloperAppListBuilderForDeveloper constructor.
@@ -54,16 +58,18 @@ class DeveloperAppListBuilderForDeveloper extends DeveloperAppListBuilder {
    *   The entity type.
    * @param \Drupal\Core\Entity\EntityStorageInterface $storage
    *   The entity storage.
-   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The entity type manager.
    * @param \Drupal\Core\Render\RendererInterface $render
    *   The render.
-   * @param \Drupal\Core\Session\AccountInterface $currentUser
+   * @param \Drupal\Core\Session\AccountInterface $current_user
    *   Currently logged-in user.
+   * @param \Symfony\Component\HttpFoundation\RequestStack $request_stack
+   *   The request stack object.
    */
-  public function __construct(EntityTypeInterface $entity_type, EntityStorageInterface $storage, EntityTypeManagerInterface $entityTypeManager, RendererInterface $render, AccountInterface $currentUser) {
-    parent::__construct($entity_type, $storage, $entityTypeManager, $render);
-    $this->currentUser = $currentUser;
+  public function __construct(EntityTypeInterface $entity_type, EntityStorageInterface $storage, EntityTypeManagerInterface $entity_type_manager, RendererInterface $render, AccountInterface $current_user, RequestStack $request_stack) {
+    parent::__construct($entity_type, $storage, $entity_type_manager, $render, $request_stack);
+    $this->currentUser = $current_user;
   }
 
   /**
@@ -76,7 +82,8 @@ class DeveloperAppListBuilderForDeveloper extends DeveloperAppListBuilder {
       $container->get('entity.manager')->getStorage($entity_type->id()),
       $container->get('entity.manager'),
       $container->get('renderer'),
-      $container->get('current_user')
+      $container->get('current_user'),
+      $container->get('request_stack')
     );
   }
 
@@ -89,7 +96,7 @@ class DeveloperAppListBuilderForDeveloper extends DeveloperAppListBuilder {
     // either there is connection error or the site is out of sync with
     // Apigee Edge.
     if ($developerId === NULL) {
-      return [];
+      throw new DeveloperDoesNotExistException($user->getEmail());
     }
 
     $query = $this->storage->getQuery()
@@ -116,7 +123,7 @@ class DeveloperAppListBuilderForDeveloper extends DeveloperAppListBuilder {
    * @return \Drupal\Core\Entity\EntityInterface[]
    *   Developer apps or an empty array.
    */
-  protected function loadByUser(UserInterface $user, array $headers = []) {
+  protected function loadByUser(UserInterface $user, array $headers = []): array {
     $entity_ids = $this->getEntityIds($headers, $user);
     return $this->storage->loadMultiple($entity_ids);
   }
@@ -149,7 +156,7 @@ class DeveloperAppListBuilderForDeveloper extends DeveloperAppListBuilder {
    * {@inheritdoc}
    */
   protected function getUniqueCssIdForApp(DeveloperAppInterface $app): string {
-    // If we are listing the apps of a developer than app name is also
+    // If we are listing the apps of a developer than developer app name is also
     // unique.
     return Html::getUniqueId($app->getName());
   }
@@ -191,14 +198,14 @@ class DeveloperAppListBuilderForDeveloper extends DeveloperAppListBuilder {
   /**
    * {@inheritdoc}
    */
-  public function getPageTitle(RouteMatchInterface $routeMatch): string {
-    $args['@developer_app'] = $this->getDeveloperAppEntityDefinition()->getPluralLabel();
-    $account = $routeMatch->getParameter('user');
+  public function getPageTitle(RouteMatchInterface $route_match): string {
+    $account = $route_match->getParameter('user');
     if ($account->id() == $this->currentUser->id()) {
-      return t('My @developer_app', $args);
+      return apigee_edge_get_my_developer_apps_title();
     }
-    $args['@user'] = $account->getDisplayName();
-    return t('@developer_app of @user', $args);
+    else {
+      return apigee_edge_get_my_developer_apps_title($account);
+    }
   }
 
   /**
@@ -211,7 +218,7 @@ class DeveloperAppListBuilderForDeveloper extends DeveloperAppListBuilder {
    * @return \Symfony\Component\HttpFoundation\RedirectResponse
    *   Returns a redirect to the My apps of the currently logged in user.
    */
-  public function myAppsPage() {
+  public function myAppsPage(): RedirectResponse {
     $options['absolute'] = TRUE;
     $url = Url::fromRoute('entity.developer_app.collection_by_developer', ['user' => \Drupal::currentUser()->id()], $options);
     return new RedirectResponse($url->toString(), 302);

@@ -20,10 +20,11 @@
 
 namespace Drupal\apigee_edge\Entity\Controller;
 
-use Apigee\Edge\ClientInterface;
 use Apigee\Edge\Api\Management\Controller\DeveloperController as EdgeDeveloperController;
 use Apigee\Edge\Api\Management\Controller\OrganizationControllerInterface;
+use Apigee\Edge\ClientInterface;
 use Apigee\Edge\Entity\EntityInterface as EdgeEntityInterface;
+use Apigee\Edge\Serializer\EntitySerializerInterface;
 use Drupal\apigee_edge\Entity\DeveloperInterface;
 use Drupal\Core\Entity\EntityInterface;
 
@@ -36,6 +37,8 @@ class DeveloperController extends EdgeDeveloperController implements DrupalEntit
   }
 
   /**
+   * The FQCN of the entity class.
+   *
    * @var string
    */
   private $entityClass;
@@ -47,24 +50,23 @@ class DeveloperController extends EdgeDeveloperController implements DrupalEntit
    *   The organization name.
    * @param \Apigee\Edge\ClientInterface $client
    *   The API client.
-   * @param string $entityClass
+   * @param string $entity_class
    *   The FQCN of the entity class that is used in Drupal.
-   * @param array $entityNormalizers
-   *   Array of entity normalizers.
-   * @param \Apigee\Edge\Api\Management\Controller\OrganizationControllerInterface|null $organizationController
+   * @param \Apigee\Edge\Serializer\EntitySerializerInterface|null $entity_serializer
+   *   The entity serializer.
+   * @param \Apigee\Edge\Api\Management\Controller\OrganizationControllerInterface|null $organization_controller
    *   The organization controller.
    *
    * @throws \ReflectionException
-   * @throws \InvalidArgumentException
    */
-  public function __construct(string $organization, ClientInterface $client, string $entityClass, array $entityNormalizers = [], ?OrganizationControllerInterface $organizationController = NULL) {
-    parent::__construct($organization, $client, $entityNormalizers, $organizationController);
-    $rc = new \ReflectionClass($entityClass);
+  public function __construct(string $organization, ClientInterface $client, string $entity_class, ?EntitySerializerInterface $entity_serializer = NULL, ?OrganizationControllerInterface $organization_controller = NULL) {
+    parent::__construct($organization, $client, $entity_serializer, $organization_controller);
+    $rc = new \ReflectionClass($entity_class);
     $interface = DeveloperInterface::class;
     if (!$rc->implementsInterface($interface)) {
       throw new \InvalidArgumentException("Entity class must implement {$interface}.");
     }
-    $this->entityClass = $entityClass;
+    $this->entityClass = $entity_class;
   }
 
   /**

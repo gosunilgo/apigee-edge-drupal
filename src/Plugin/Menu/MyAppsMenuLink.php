@@ -31,6 +31,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class MyAppsMenuLink extends MenuLinkDefault {
 
   /**
+   * The entity type manager.
+   *
    * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
   private $entityTypeManager;
@@ -46,12 +48,12 @@ class MyAppsMenuLink extends MenuLinkDefault {
    *   The plugin implementation definition.
    * @param \Drupal\Core\Menu\StaticMenuLinkOverridesInterface $static_override
    *   The static override storage.
-   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The entity type manager.
    */
-  public function __construct(array $configuration, string $plugin_id, $plugin_definition, StaticMenuLinkOverridesInterface $static_override, EntityTypeManagerInterface $entityTypeManager) {
+  public function __construct(array $configuration, string $plugin_id, $plugin_definition, StaticMenuLinkOverridesInterface $static_override, EntityTypeManagerInterface $entity_type_manager) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $static_override);
-    $this->entityTypeManager = $entityTypeManager;
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -71,8 +73,7 @@ class MyAppsMenuLink extends MenuLinkDefault {
    * {@inheritdoc}
    */
   public function getTitle() {
-    $devAppLabel = $this->entityTypeManager->getDefinition('developer_app')->getPluralLabel();
-    return $this->t('My @developer_app', ['@developer_app' => $devAppLabel]);
+    return apigee_edge_get_my_developer_apps_title();
   }
 
 }

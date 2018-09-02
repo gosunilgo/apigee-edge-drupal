@@ -22,6 +22,7 @@ namespace Drupal\apigee_edge\Entity;
 use Apigee\Edge\Api\Management\Entity\DeveloperApp as EdgeDeveloperApp;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Field\BaseFieldDefinition;
+use Drupal\Core\Url;
 use Drupal\user\Entity\User;
 use Drupal\user\UserInterface;
 
@@ -63,7 +64,7 @@ use Drupal\user\UserInterface;
  *     "analytics" = "/developer-apps/{developer_app}/analytics",
  *     "canonical-by-developer" = "/user/{user}/apps/{app}",
  *     "collection-by-developer" = "/user/{user}/apps",
- *     "add-form-for-developer" = "/user/{user}/apps/add",
+ *     "add-form-for-developer" = "/user/{user}/create-app",
  *     "edit-form-for-developer" = "/user/{user}/apps/{app}/edit",
  *     "delete-form-for-developer" = "/user/{user}/apps/{app}/delete",
  *     "analytics-for-developer" = "/user/{user}/apps/{app}/analytics",
@@ -80,7 +81,9 @@ class DeveloperApp extends EdgeDeveloperApp implements DeveloperAppInterface {
 
   use AppCredentialStorageAwareTrait;
   use FieldableEdgeEntityBaseTrait {
+    set as private traitSet;
     id as private traitId;
+    label as private traitLabel;
     urlRouteParameters as private traitUrlRouteParameters;
     baseFieldDefinitions as private traitBaseFieldDefinitions;
   }
@@ -230,11 +233,32 @@ class DeveloperApp extends EdgeDeveloperApp implements DeveloperAppInterface {
 
   /**
    * {@inheritdoc}
+   */
+  public function set($field_name, $value, $notify = TRUE) {
+    // If the callback URL value is not a valid URL then save an empty string
+    // as the field value and set the callbackUrl property to the original
+    // value. It's not necessary if the value's type is array, in this case the
+    // field value is set on the developer app edit form.
+    if ($field_name === 'callbackUrl' && !is_array($value)) {
+      try {
+        Url::fromUri($value);
+      }
+      catch (\Exception $exception) {
+        $developer_app = $this->traitSet($field_name, '', $notify);
+        $developer_app->setCallbackUrl($value);
+        return $developer_app;
+      }
+    }
+    return $this->traitSet($field_name, $value, $notify);
+  }
+
+  /**
+   * {@inheritdoc}
    *
    * We use the app id for this and uuid() because app name is only unique
    * together with developerId.
    */
-  public function id(): ? string {
+  public function id(): ?string {
     return $this->getAppId();
   }
 
@@ -243,6 +267,18 @@ class DeveloperApp extends EdgeDeveloperApp implements DeveloperAppInterface {
    */
   public function uuid() {
     return $this->getAppId();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function label() {
+    $label = $this->traitLabel();
+    // Return app name instead of app id if display name is missing.
+    if ($label === $this->id()) {
+      $label = $this->getName();
+    }
+    return $label;
   }
 
   /**

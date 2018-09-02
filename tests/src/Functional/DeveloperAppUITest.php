@@ -37,6 +37,53 @@ class DeveloperAppUITest extends ApigeeEdgeFunctionalTestBase {
   protected const DUPLICATE_MACHINE_NAME = 'The machine-readable name is already in use. It must be unique.';
 
   /**
+   * {@inheritdoc}
+   */
+  protected function setUp() {
+    parent::setUp();
+
+    // We can not override self::$modules in this trait because that would
+    // conflict with \Drupal\Tests\BrowserTestBase::$modules where both
+    // traits are being used.
+    $this->installExtraModules(['block']);
+    $this->drupalPlaceBlock('local_tasks_block');
+    $this->drupalPlaceBlock('system_breadcrumb_block');
+
+    $config = $this->config('apigee_edge.dangerzone');
+    $config->set('skip_developer_app_settings_validation', TRUE);
+    $config->save();
+
+    $this->products[] = $this->createProduct();
+    $this->account = $this->createAccount(static::$permissions);
+    $this->drupalLogin($this->account);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function tearDown() {
+    try {
+      if ($this->account !== NULL) {
+        $this->account->delete();
+      }
+    }
+    catch (\Exception $exception) {
+      $this->logException($exception);
+    }
+    foreach ($this->products as $product) {
+      try {
+        if ($product !== NULL) {
+          $product->delete();
+        }
+      }
+      catch (\Exception $exception) {
+        $this->logException($exception);
+      }
+    }
+    parent::tearDown();
+  }
+
+  /**
    * Tests the developer app label modification.
    *
    * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
@@ -63,11 +110,11 @@ class DeveloperAppUITest extends ApigeeEdgeFunctionalTestBase {
       "default_api_product_multiple[{$this->products[0]->getName()}]" => $this->products[0]->getName(),
     ]);
     $this->gotoCreateAppForm();
-    $this->assertSession()->pageTextNotContains('API Product');
+    $this->assertSession()->pageTextNotContains('APIs');
 
     $this->submitAdminForm();
     $this->gotoCreateAppForm();
-    $this->assertSession()->pageTextContains('API Product');
+    $this->assertSession()->pageTextContains('APIs');
   }
 
   /**
@@ -99,7 +146,7 @@ class DeveloperAppUITest extends ApigeeEdgeFunctionalTestBase {
     $this->clickLink($name);
 
     $this->assertSession()->pageTextContains($name);
-    $this->assertSession()->pageTextContains($this->products[0]->getDisplayName());
+    $this->assertSession()->pageTextContains($this->products[0]->label());
 
     $this->clickLink('Delete');
     $this->submitForm([], 'Delete');
@@ -192,7 +239,8 @@ class DeveloperAppUITest extends ApigeeEdgeFunctionalTestBase {
     ]);
     $this->assertSession()->pageTextContains($name);
     $this->clickLink($name);
-    $this->assertSession()->pageTextContains('1 week 2 days hence');
+    // Result depends on how fast the response was.
+    $this->assertSession()->pageTextMatches('/1 week (2|3) days hence/');
 
     // Change credential lifetime to 0 (Never) days from 10.
     $this->drupalPostForm('/admin/config/apigee-edge/app-settings/credentials', [
@@ -223,7 +271,7 @@ class DeveloperAppUITest extends ApigeeEdgeFunctionalTestBase {
     ]);
 
     $asserts = function () {
-      $this->assertSession()->pageTextContains($this->products[0]->getDisplayName());
+      $this->assertSession()->pageTextContains($this->products[0]->label());
     };
 
     $this->assertAppCrud(NULL, $asserts, NULL, $asserts);
@@ -244,9 +292,9 @@ class DeveloperAppUITest extends ApigeeEdgeFunctionalTestBase {
     ]);
 
     $asserts = function () {
-      $this->assertSession()->pageTextContains($this->products[0]->getDisplayName());
-      $this->assertSession()->pageTextContains($this->products[1]->getDisplayName());
-      $this->assertSession()->pageTextNotContains($this->products[2]->getDisplayName());
+      $this->assertSession()->pageTextContains($this->products[0]->label());
+      $this->assertSession()->pageTextContains($this->products[1]->label());
+      $this->assertSession()->pageTextNotContains($this->products[2]->label());
     };
 
     $this->assertAppCrud(NULL, $asserts, NULL, $asserts);
@@ -265,15 +313,15 @@ class DeveloperAppUITest extends ApigeeEdgeFunctionalTestBase {
         return $data;
       },
       function () {
-        $this->assertSession()->pageTextContains($this->products[0]->getDisplayName());
+        $this->assertSession()->pageTextContains($this->products[0]->label());
       },
       function (array $data, string $credential_id): array {
         $data["credential[{$credential_id}][api_products]"] = $this->products[1]->getName();
         return $data;
       },
       function () {
-        $this->assertSession()->pageTextNotContains($this->products[0]->getDisplayName());
-        $this->assertSession()->pageTextContains($this->products[1]->getDisplayName());
+        $this->assertSession()->pageTextNotContains($this->products[0]->label());
+        $this->assertSession()->pageTextContains($this->products[1]->label());
       }
     );
   }
@@ -292,14 +340,14 @@ class DeveloperAppUITest extends ApigeeEdgeFunctionalTestBase {
         return $data;
       },
       function () {
-        $this->assertSession()->pageTextContains($this->products[1]->getDisplayName());
+        $this->assertSession()->pageTextContains($this->products[1]->label());
       },
       function (array $data, string $credential_id): array {
         $data["credential[{$credential_id}][api_products]"] = $this->products[0]->getName();
         return $data;
       },
       function () {
-        $this->assertSession()->pageTextContains($this->products[0]->getDisplayName());
+        $this->assertSession()->pageTextContains($this->products[0]->label());
       }
     );
   }
@@ -321,9 +369,9 @@ class DeveloperAppUITest extends ApigeeEdgeFunctionalTestBase {
         return $data;
       },
       function () {
-        $this->assertSession()->pageTextContains($this->products[0]->getDisplayName());
-        $this->assertSession()->pageTextContains($this->products[1]->getDisplayName());
-        $this->assertSession()->pageTextNotContains($this->products[2]->getDisplayName());
+        $this->assertSession()->pageTextContains($this->products[0]->label());
+        $this->assertSession()->pageTextContains($this->products[1]->label());
+        $this->assertSession()->pageTextNotContains($this->products[2]->label());
       },
       function (array $data, string $credential_id): array {
         $data["credential[{$credential_id}][api_products][]"] = [
@@ -332,9 +380,9 @@ class DeveloperAppUITest extends ApigeeEdgeFunctionalTestBase {
         return $data;
       },
       function () {
-        $this->assertSession()->pageTextNotContains($this->products[0]->getDisplayName());
-        $this->assertSession()->pageTextNotContains($this->products[1]->getDisplayName());
-        $this->assertSession()->pageTextContains($this->products[2]->getDisplayName());
+        $this->assertSession()->pageTextNotContains($this->products[0]->label());
+        $this->assertSession()->pageTextNotContains($this->products[1]->label());
+        $this->assertSession()->pageTextContains($this->products[2]->label());
       }
     );
   }
@@ -353,9 +401,9 @@ class DeveloperAppUITest extends ApigeeEdgeFunctionalTestBase {
         return $data;
       },
       function () {
-        $this->assertSession()->pageTextNotContains($this->products[0]->getDisplayName());
-        $this->assertSession()->pageTextNotContains($this->products[1]->getDisplayName());
-        $this->assertSession()->pageTextContains($this->products[2]->getDisplayName());
+        $this->assertSession()->pageTextNotContains($this->products[0]->label());
+        $this->assertSession()->pageTextNotContains($this->products[1]->label());
+        $this->assertSession()->pageTextContains($this->products[2]->label());
       },
       function (array $data, string $credential_id): array {
         $data["credential[{$credential_id}][api_products][{$this->products[0]->getName()}]"] = $this->products[0]->getName();
@@ -364,9 +412,9 @@ class DeveloperAppUITest extends ApigeeEdgeFunctionalTestBase {
         return $data;
       },
       function () {
-        $this->assertSession()->pageTextContains($this->products[0]->getDisplayName());
-        $this->assertSession()->pageTextContains($this->products[1]->getDisplayName());
-        $this->assertSession()->pageTextNotContains($this->products[2]->getDisplayName());
+        $this->assertSession()->pageTextContains($this->products[0]->label());
+        $this->assertSession()->pageTextContains($this->products[1]->label());
+        $this->assertSession()->pageTextNotContains($this->products[2]->label());
       }
     );
   }
@@ -376,7 +424,7 @@ class DeveloperAppUITest extends ApigeeEdgeFunctionalTestBase {
    */
   public function testNotificationsWhenAccountIsInactiveOnEdge() {
     /** @var \Drupal\apigee_edge\SDKConnectorInterface $connector */
-    $connector = \Drupal::service('apigee_edge.sdk_connector');
+    $connector = $this->container->get('apigee_edge.sdk_connector');
     $controller = new DeveloperController($connector->getOrganization(), $connector->getClient());
 
     $controller->setStatus($this->account->getEmail(), Developer::STATUS_INACTIVE);
@@ -460,13 +508,101 @@ class DeveloperAppUITest extends ApigeeEdgeFunctionalTestBase {
     $this->drupalGet($app_edit_url);
     // Also test field description.
     $this->assertSession()->pageTextContains($description);
-    $this->drupalPostForm($app_edit_url, [], t('Save'));
+    $this->drupalPostForm($app_edit_url, [], 'Save');
     $this->assertSession()->pageTextContains("The URL {$callback_url} is not valid.");
-    $this->drupalPostForm($app_edit_url, ['callbackUrl[0][value]' => 'http://example.com'], t('Save'));
+    $this->drupalPostForm($app_edit_url, ['callbackUrl[0][value]' => 'http://example.com'], 'Save');
     $this->assertSession()->pageTextContains("Callback URL field is not in the right format.");
-    $this->drupalPostForm($app_edit_url, ['callbackUrl[0][value]' => 'https://example.com'], t('Save'));
+    $this->drupalPostForm($app_edit_url, ['callbackUrl[0][value]' => 'https://example.com'], 'Save');
     $this->assertSession()->pageTextContains('Developer App details have been successfully updated.');
     $this->assertSession()->pageTextContains('https://example.com');
+  }
+
+  /**
+   * Ensures warning message is visible if callback url's value is invalid.
+   */
+  public function testInvalidEdgeSideCallbackUrl() {
+    $this->drupalLogin($this->rootUser);
+    $this->products[] = $this->createProduct();
+    $callback_url = $this->randomGenerator->word(8);
+    $callback_url_warning_msg = "The Callback URL value should be fixed. The URI '{$callback_url}' is invalid. You must use a valid URI scheme.";
+    $app = $this->createDeveloperApp([
+      'name' => $this->randomMachineName(),
+      'displayName' => $this->randomString(),
+      'callbackUrl' => $callback_url,
+    ],
+      $this->account,
+      [
+        $this->products[0]->id(),
+      ]);
+
+    $app_view_url = $app->toUrl('canonical');
+    $app_view_by_developer_url = $app->toUrl('canonical-by-developer');
+    $app_edit_form_url = $app->toUrl('edit-form');
+    $app_edit_form_for_developer_url = $app->toUrl('edit-form-for-developer');
+
+    $this->drupalGet($app_view_url);
+    $this->assertSession()->pageTextContains($callback_url_warning_msg);
+    $this->assertSession()->pageTextNotContains('Callback URL:');
+    $this->drupalGet($app_view_by_developer_url);
+    $this->assertSession()->pageTextContains($callback_url_warning_msg);
+    $this->assertSession()->pageTextNotContains('Callback URL:');
+
+    $this->drupalGet($app_edit_form_url);
+    $this->assertSession()->fieldValueEquals('callbackUrl[0][value]', $callback_url);
+    $this->drupalGet($app_edit_form_for_developer_url);
+    $this->assertSession()->fieldValueEquals('callbackUrl[0][value]', $callback_url);
+
+    $this->drupalPostForm('/admin/config/apigee-edge/app-settings/display', ['fields[callbackUrl][region]' => 'hidden'], 'Save');
+    $this->drupalPostForm('/admin/config/apigee-edge/app-settings/form-display', ['fields[callbackUrl][region]' => 'hidden'], 'Save');
+
+    $this->drupalGet($app_view_url);
+    $this->assertSession()->pageTextNotContains($callback_url_warning_msg);
+    $this->assertSession()->pageTextNotContains('Callback URL:');
+
+    $this->drupalGet($app_view_by_developer_url);
+    $this->assertSession()->pageTextNotContains($callback_url_warning_msg);
+    $this->assertSession()->pageTextNotContains('Callback URL:');
+  }
+
+  /**
+   * Ensures breadcrumb is properly displayed on the developer app pages.
+   */
+  public function testBreadcrumbOnDeveloperAppPages() {
+    $this->drupalLogin($this->rootUser);
+    $user = $this->createAccount();
+
+    // Check UID 2 my apps page.
+    $this->drupalGet(Url::fromRoute('entity.developer_app.collection_by_developer', ['user' => $this->account->id()]));
+    $breadcrumb_links = $this->getBreadcrumbLinks();
+    $this->assertEquals('/', $breadcrumb_links[0]->getAttribute('href'));
+    $this->assertEquals(Url::fromRoute('entity.user.canonical', ['user' => $this->account->id()])->toString(), $breadcrumb_links[1]->getAttribute('href'));
+
+    // Check UID 2 create app page.
+    $this->drupalGet(Url::fromRoute('entity.developer_app.add_form_for_developer', ['user' => $this->account->id()]));
+    $breadcrumb_links = $this->getBreadcrumbLinks();
+    $this->assertEquals('/', $breadcrumb_links[0]->getAttribute('href'));
+    $this->assertEquals(Url::fromRoute('entity.user.canonical', ['user' => $this->account->id()])->toString(), $breadcrumb_links[1]->getAttribute('href'));
+    $this->assertEquals(Url::fromRoute('entity.developer_app.collection_by_developer', ['user' => $this->account->id()])->toString(), $breadcrumb_links[2]->getAttribute('href'));
+    // Ensure that hook_my_developer_apps_title_alter() works properly.
+    $this->assertStringStartsWith('Foo', $breadcrumb_links[2]->getText());
+
+    // Check UID 3 my apps page.
+    $this->drupalGet(Url::fromRoute('entity.developer_app.collection_by_developer', ['user' => $user->id()]));
+    $breadcrumb_links = $this->getBreadcrumbLinks();
+    $this->assertEquals('/', $breadcrumb_links[0]->getAttribute('href'));
+    $this->assertEquals(Url::fromRoute('entity.user.canonical', ['user' => $user->id()])->toString(), $breadcrumb_links[1]->getAttribute('href'));
+
+    // Check UID 3 create app page.
+    $this->drupalGet(Url::fromRoute('entity.developer_app.add_form_for_developer', ['user' => $user->id()]));
+    $expected_breadcrumb[] = Url::fromRoute('entity.developer_app.collection_by_developer', [
+      'user' => $user->id(),
+    ])->toString();
+    $breadcrumb_links = $this->getBreadcrumbLinks();
+    $this->assertEquals('/', $breadcrumb_links[0]->getAttribute('href'));
+    $this->assertEquals(Url::fromRoute('entity.user.canonical', ['user' => $user->id()])->toString(), $breadcrumb_links[1]->getAttribute('href'));
+    $this->assertEquals(Url::fromRoute('entity.developer_app.collection_by_developer', ['user' => $user->id()])->toString(), $breadcrumb_links[2]->getAttribute('href'));
+    // Ensure that hook_my_developer_apps_title_alter() works properly.
+    $this->assertStringStartsWith('Foo', $breadcrumb_links[2]->getText());
   }
 
 }

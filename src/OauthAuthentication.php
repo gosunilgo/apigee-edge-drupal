@@ -18,22 +18,24 @@
  * MA 02110-1301, USA.
  */
 
-namespace Drupal\apigee_edge\Exception;
+namespace Drupal\apigee_edge;
 
-class UnsupportedEntityTypeException extends \RuntimeException {
+use Apigee\Edge\ClientInterface;
+use Apigee\Edge\HttpClient\Plugin\Authentication\Oauth;
+use Http\Message\Authentication\BasicAuth;
+
+/**
+ * Decorator for OAuth authentication plugin.
+ */
+class OauthAuthentication extends Oauth {
 
   /**
-   * UnsupportedEntityTypeException constructor.
-   *
-   * @param string $entityType
-   *   Name of the entity type.
-   * @param int $code
-   *   Error code.
-   * @param \Throwable|null $previous
-   *   Previous exception.
+   * {@inheritdoc}
    */
-  public function __construct(string $entityType, int $code = 0, \Throwable $previous = NULL) {
-    parent::__construct("{$entityType} is not an Apigee Edge entity.", $code, $previous);
+  protected function authClient(): ClientInterface {
+    /** @var \Drupal\apigee_edge\SDKConnectorInterface $sdk_connector */
+    $sdk_connector = \Drupal::service('apigee_edge.sdk_connector');
+    return $sdk_connector->buildClient(new BasicAuth($this->clientId, $this->clientSecret), $this->auth_server);
   }
 
 }

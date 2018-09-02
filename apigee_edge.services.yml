@@ -26,7 +26,11 @@ services:
 
   apigee_edge.exception_subscriber:
     class: Drupal\apigee_edge\EventSubscriber\EdgeExceptionSubscriber
-    arguments: ['@url_generator']
+    arguments:
+      - '@http_kernel'
+      - '@logger.channel.php'
+      - '@redirect.destination'
+      - '@router.no_access_checks'
     tags:
       - { name: event_subscriber }
 
@@ -47,6 +51,11 @@ services:
       - '@entity_type.manager'
     tags:
       - { name: event_subscriber }
+
+  apigee_edge.breadcrumb.create_app:
+    class: Drupal\apigee_edge\Breadcrumb\CreateAppForDeveloperBreadcrumbBuilder
+    tags:
+    - { name: breadcrumb_builder, priority: 101 }
 
   route_subscriber.apigee_edge.developer_app_by_name:
     class: Drupal\apigee_edge\Routing\DeveloperAppByNameRouteAlterSubscriber

@@ -21,24 +21,23 @@
 namespace Drupal\apigee_edge_debug;
 
 use Drupal\apigee_edge\SDKConnector as OriginalSDKConnector;
-use Drupal\Component\Utility\NestedArray;
+use Drupal\apigee_edge\SDKConnectorInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\InfoParserInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Http\ClientFactory;
 use Drupal\Core\State\StateInterface;
 use Drupal\key\KeyRepositoryInterface;
-use Http\Adapter\Guzzle6\Client as GuzzleClientAdapter;
 
 /**
  * Service decorator for SDKConnector.
  */
-class SDKConnector extends OriginalSDKConnector {
+class SDKConnector extends OriginalSDKConnector implements SDKConnectorInterface {
 
   /**
    * Customer http request header.
    *
-   * This tells ApiClientProfiler to profile requests made by the underlying
+   * This tells the ApiClientProfiler to profile requests made by the underlying
    * HTTP client.
    *
    * @see \Drupal\apigee_edge_debug\HttpClientMiddleware\ApiClientProfiler
@@ -53,37 +52,35 @@ class SDKConnector extends OriginalSDKConnector {
   private $innerService;
 
   /**
-   * SDKConnector constructor.
+   * Constructs a new SDKConnector.
    *
-   * @param \Drupal\Core\Http\ClientFactory $clientFactory
-   *   Http Client factory service.
+   * @param \Drupal\apigee_edge\SDKConnectorInterface $inner_service
+   *   The decorated SDK connector service.
+   * @param \Drupal\Core\Http\ClientFactory $client_factory
+   *   Http client.
    * @param \Drupal\key\KeyRepositoryInterface $key_repository
    *   The key repository.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
-   *   Entity Type manager service.
+   *   Entity type manager service.
    * @param \Drupal\Core\State\StateInterface $state
    *   The state key/value store.
-   * @param \Drupal\Core\Extension\ModuleHandlerInterface $moduleHandler
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   Module handler service.
-   * @param \Drupal\Core\Extension\InfoParserInterface $infoParser
+   * @param \Drupal\Core\Extension\InfoParserInterface $info_parser
    *   Info file parser service.
    */
-  public function __construct(ClientFactory $clientFactory, KeyRepositoryInterface $key_repository, EntityTypeManagerInterface $entity_type_manager, StateInterface $state, ModuleHandlerInterface $moduleHandler, InfoParserInterface $infoParser) {
-    parent::__construct($clientFactory, $key_repository, $entity_type_manager, $state, $moduleHandler, $infoParser);
-    $config = [
-      'headers' => [
-        static::HEADER => static::HEADER,
-      ],
-    ];
-    $config = NestedArray::mergeDeep($this->getHttpClientConfiguration($state), $config);
-    $this->httpClient = new GuzzleClientAdapter($clientFactory->fromOptions($config));
+  public function __construct(SDKConnectorInterface $inner_service, ClientFactory $client_factory, KeyRepositoryInterface $key_repository, EntityTypeManagerInterface $entity_type_manager, StateInterface $state, ModuleHandlerInterface $module_handler, InfoParserInterface $info_parser) {
+    $this->innerService = $inner_service;
+    parent::__construct($client_factory, $key_repository, $entity_type_manager, $state, $module_handler, $info_parser);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function __call($method, $args) {
-    return call_user_func_array([$this->innerService, $method], $args);
+  protected function httpClientConfiguration(): array {
+    $config = $this->innerService->httpClientConfiguration();
+    $config['headers'][static::HEADER] = static::HEADER;
+    return $config;
   }
 
 }

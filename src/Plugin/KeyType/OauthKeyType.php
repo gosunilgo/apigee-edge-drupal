@@ -20,6 +20,7 @@
 namespace Drupal\apigee_edge\Plugin\KeyType;
 
 use Apigee\Edge\HttpClient\Plugin\Authentication\Oauth;
+use Drupal\apigee_edge\OauthAuthentication;
 use Drupal\apigee_edge\OauthTokenStorage;
 use Drupal\apigee_edge\Plugin\EdgeOauthKeyTypeInterface;
 use Drupal\key\KeyInterface;
@@ -76,29 +77,29 @@ class OauthKeyType extends BasicAuthKeyType implements EdgeOauthKeyTypeInterface
   /**
    * {@inheritdoc}
    */
-  public function getAuthorizationServer(KeyInterface $key): ?string {
-    return $key->getKeyValues()['authorization_server'] ?? NULL;
+  public function getAuthorizationServer(KeyInterface $key): string {
+    return $key->getKeyValues()['authorization_server'] ?? Oauth::DEFAULT_AUTHORIZATION_SERVER;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getClientId(KeyInterface $key): ?string {
-    return $key->getKeyValues()['client_id'] ?? NULL;
+  public function getClientId(KeyInterface $key): string {
+    return $key->getKeyValues()['client_id'] ?? Oauth::DEFAULT_CLIENT_ID;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getClientSecret(KeyInterface $key): ?string {
-    return $key->getKeyValues()['client_secret'] ?? NULL;
+  public function getClientSecret(KeyInterface $key): string {
+    return $key->getKeyValues()['client_secret'] ?? Oauth::DEFAULT_CLIENT_SECRET;
   }
 
   /**
    * {@inheritdoc}
    */
   public function getAuthenticationMethod(KeyInterface $key, KeyInterface $key_token = NULL): Authentication {
-    return new Oauth($this->getUsername($key), $this->getPassword($key), new OauthTokenStorage($key_token), NULL, $this->getClientId($key), $this->getClientSecret($key), NULL, $this->getAuthorizationServer($key));
+    return new OauthAuthentication($this->getUsername($key), $this->getPassword($key), new OauthTokenStorage($key_token), NULL, $this->getClientId($key), $this->getClientSecret($key), NULL, $this->getAuthorizationServer($key));
   }
 
 }
